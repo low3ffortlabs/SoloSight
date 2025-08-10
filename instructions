@@ -1,0 +1,40 @@
+NOTE:
+If your device has an internal webcam, it will be enabled by default.
+To make the internal webcam disabled automatically on startup, select
+the 'Settings' button and check the box for 'Disable internal webcam
+on startup'. This will immediately disable the internal webcam as
+as well as disable it on startup.
+
+TO ADD A NEW CAMERA(S):
+- Plug in camera via USB.
+- Select 'Refresh Cameras'.
+- Wait a moment and a new window will open with the new camera's feed.
+
+TO LABEL CAMERAS
+- In the top, right corner of each camera window there is an 'Edit' button.
+- This changes the label for that specific camera. 
+- Additionally, you can change the labels for all cameras at once:
+- In 'Settings', label your cameras and separate each label with commas.
+- The first label you type is for camera '0' or the first camera enabled.
+- The second label you type after the comma is for camera '1' and so on.
+
+TO RESIZE / REORDER CAMERA FEEDS:
+- In the top right corner of each camera feed there is a square box icon.
+- Select this icon and that camera's feed will open in a new separate window.
+- This window can be moved around your screen.
+- To resize this window, click and drag the corner of the window.
+
+RECORDING YOUR FEEDS:
+NOTE: Recording records feeds from all cameras and saves each camera's feed
+individually as separate videos.
+
+- Start by selecting the 'Settings' button.
+- Select the 'Browse' button beside 'Recording folder' to set the save location.
+- To begin recording, select the 'Start Recording' button in the bottom left.
+- To stop recording, the same button now reads as 'Stop Recording', select that.
+- By default, the maximum recording length is set to 5 minute 'chunks' for 
+a 60 minute total runtime. (Dashcam-style)
+- To adjust this, in the 'Settings' window, type in your desired recording length
+for individual chunks into the 'Chunk Minutes' box. (5-10 minutes)
+- Below that, you can adjust the total recording length labeled 
+'Max session minutes'. (<=60mins) 
