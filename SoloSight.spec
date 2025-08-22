@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['main.py'],
+    ['ui_main.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['assets\\logo.ico'],
+    icon=['C:\\Users\\jaxfa\\OneDrive\\Documents\\SoloSight\\assets\\logo.ico'],
 )

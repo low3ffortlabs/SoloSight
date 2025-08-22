@@ -1,7 +1,11 @@
 {
-  "camera_labels": [],
-  "save_path": "recordings",
+  "camera_labels": [
+    "A",
+    "B"
+  ],
+  "save_path": "C:/Users/jaxfa/Pictures/Camera Roll",
   "record_chunk_minutes": 5,
   "max_record_minutes": 60,
-  "window_geometry": null
+  "window_geometry": null,
+  "disable_internal_cam": false
 }

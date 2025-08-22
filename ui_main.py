@@ -1,32 +1,51 @@
-# ui_main.py
 import os
 import sys
 import time
-import sys, os
+import traceback
+import webbrowser
+import version
 
-def resource_path(relative_path):
-    """Get absolute path to resource, works in dev and after PyInstaller build"""
-    try:
-        base_path = sys._MEIPASS  # PyInstaller temp dir
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 import cv2
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QGridLayout,
     QApplication, QLineEdit, QDialog, QFileDialog, QFrame, QScrollArea,
-    QGroupBox, QFormLayout, QMessageBox
+    QGroupBox, QFormLayout, QMessageBox, QCheckBox, QInputDialog
 )
 from PyQt5.QtGui import QImage, QPixmap, QFont, QIcon
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, QSize
+
+from icon_loader import icon
+from settings_manager import load_settings, save_settings
 from camera_manager import find_available_cameras
 from recorder import CameraRecorder
-from settings_manager import load_settings, save_settings
 import theme
 
-# helper for debug label
+
 def overlay_text(frame, text, x=10, y=20):
-    cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1, cv2.LINE_AA)
+    cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+
+
+class ResizableFullScreenDialog(QDialog):
+    def __init__(self, label_text, update_func, parent=None):
+        super().__init__(parent, Qt.Window)
+        self.setWindowTitle(label_text)
+        self.resize(800, 600)
+        self.setMinimumSize(100, 100)
+
+        self.full_label = QLabel()
+        self.full_label.setAlignment(Qt.AlignCenter)
+        self.full_label.setMinimumSize(100, 100)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.full_label)
+        self.setLayout(layout)
+
+        self.update_func = update_func
+
+    def resizeEvent(self, event):
+        self.update_func()
+        return super().resizeEvent(event)
+
 
 class CameraWidget(QWidget):
     def __init__(self, cam_index, label_text, settings, parent=None):
@@ -42,15 +61,27 @@ class CameraWidget(QWidget):
 
         # UI components
         self.label = QLabel(self.label_text)
-        self.label.setStyleSheet(f"color: {theme.FOREGROUND}; font-family: {theme.LABEL_FONT}; font-size: {theme.BASE_FONT_SIZE + 2}px;")
+        self.label.setStyleSheet(
+            f"color: {theme.FOREGROUND}; font-family: {theme.LABEL_FONT}; font-size: {theme.BASE_FONT_SIZE + 8}px;"
+        )
         self.video = QLabel()
         self.video.setFixedSize(480, 360)
         self.video.setStyleSheet("background: black;")
-        self.btn_full = QPushButton("⛶")
-        self.btn_full.setFixedWidth(34)
+
+        self.btn_full = QPushButton()
+        self.btn_full.setIcon(icon("fullscreen", theme.ICON_MEDIUM))
+        self.btn_full.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_full.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_full.setToolTip("Fullscreen")
+        self.btn_full.setFixedSize(48, 48)
         self.btn_full.clicked.connect(self.toggle_fullscreen)
-        self.btn_edit = QPushButton("Edit")
-        self.btn_edit.setFixedWidth(44)
+
+        self.btn_edit = QPushButton()
+        self.btn_edit.setIcon(icon("edit", theme.ICON_MEDIUM))
+        self.btn_edit.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_edit.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_edit.setToolTip("Edit Camera Label")
+        self.btn_edit.setFixedSize(48, 48)
         self.btn_edit.clicked.connect(self.edit_label)
 
         top_row = QHBoxLayout()
@@ -69,14 +100,12 @@ class CameraWidget(QWidget):
         self.in_fullscreen = False
 
     def open(self):
-        # try to open capture with DirectShow on Windows for stability
         try:
             self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
         except Exception:
             self.cap = cv2.VideoCapture(self.cam_index)
         if not self.cap.isOpened():
             return False
-        # start timer to update
         self.timer.start(30)
         return True
 
@@ -98,33 +127,24 @@ class CameraWidget(QWidget):
             self.debug.setText("Frame grab failed")
             return
 
-        # overlay debug info
         h, w = frame.shape[:2]
         fps_text = f"{int(self.cap.get(cv2.CAP_PROP_FPS) or 30)}FPS"
         cam_name = self.label_text
         overlay_text(frame, f"{cam_name} | {w}x{h} | {fps_text}", 8, 18)
 
-        # convert to Qt image
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         qimg = QImage(rgb.data, rgb.shape[1], rgb.shape[0], QImage.Format_RGB888)
         pix = QPixmap.fromImage(qimg).scaled(self.video.width(), self.video.height(), Qt.KeepAspectRatio)
         self.video.setPixmap(pix)
-        # write to recorder if recording
         if self.recording and self.recorder:
             self.recorder.write_frame(frame)
 
     def toggle_fullscreen(self):
         if not self.in_fullscreen:
-            # create a dialog window to show the video in fullscreen-like
-            self.full_win = QDialog(self, Qt.Window)
-            self.full_win.setWindowTitle(self.label_text)
-            full_layout = QVBoxLayout()
-            full_video = QLabel()
-            full_layout.addWidget(full_video)
-            self.full_win.setLayout(full_layout)
-            self.full_label = full_video
-            self.full_win.showMaximized()
-            # start an internal timer to push frames
+            self.full_win = ResizableFullScreenDialog(self.label_text, self._update_full, self)
+            self.full_label = self.full_win.full_label
+            self.full_win.show()
+
             self.full_timer = QTimer()
             self.full_timer.timeout.connect(self._update_full)
             self.full_timer.start(30)
@@ -147,12 +167,10 @@ class CameraWidget(QWidget):
         qimg = QImage(rgb.data, rgb.shape[1], rgb.shape[0], QImage.Format_RGB888)
         pix = QPixmap.fromImage(qimg).scaled(self.full_label.width(), self.full_label.height(), Qt.KeepAspectRatio)
         self.full_label.setPixmap(pix)
-        # if recording write as well
         if self.recording and self.recorder:
             self.recorder.write_frame(frame)
 
     def edit_label(self):
-        # simple inline edit dialog
         text, ok = QInputDialog.getText(self, "Edit Camera Label", "Label:", QLineEdit.Normal, self.label_text)
         if ok and text:
             self.label_text = text
@@ -172,7 +190,6 @@ class CameraWidget(QWidget):
             self.recorder.stop()
         self.recording = False
 
-from PyQt5.QtWidgets import QInputDialog, QLineEdit
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -187,46 +204,73 @@ class MainWindow(QWidget):
         self.save_path = self.settings.get("save_path", "recordings")
         self.chunk_minutes = self.settings.get("record_chunk_minutes", theme.RECORD_CHUNK_MINUTES)
         self.max_minutes = self.settings.get("max_record_minutes", theme.RECORD_MAX_MINUTES)
+        self.disable_internal_cam = self.settings.get("disable_internal_cam", False)
 
-        # UI building
         main_layout = QVBoxLayout()
         header = QHBoxLayout()
         title = QLabel(theme.APP_NAME)
-        title.setStyleSheet(f"font-size:16pt; color:{theme.ACCENT};")
+        title.setStyleSheet(f"font-size:16pt; font-weight:bold; color:{theme.ACCENT};")
         header.addWidget(title)
         header.addStretch()
         self.status_label = QLabel("Ready")
         header.addWidget(self.status_label)
         main_layout.addLayout(header)
 
-        # camera grid area
         self.grid = QGridLayout()
         self.grid_frame = QFrame()
         self.grid_frame.setLayout(self.grid)
         main_layout.addWidget(self.grid_frame)
 
-        # controls
         ctrl = QHBoxLayout()
-        self.btn_record = QPushButton("Start Recording")
+        self.btn_record = QPushButton()
+        self.btn_record.setIcon(icon("record", theme.ICON_MEDIUM))
+        self.btn_record.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_record.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_record.setToolTip("Start/Stop Recording")
         self.btn_record.setCheckable(True)
         self.btn_record.clicked.connect(self.on_record_toggle)
         ctrl.addWidget(self.btn_record)
-        self.btn_refresh = QPushButton("Refresh Cameras")
+
+        self.btn_refresh = QPushButton()
+        self.btn_refresh.setIcon(icon("refresh", theme.ICON_MEDIUM))
+        self.btn_refresh.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_refresh.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_refresh.setToolTip("Refresh Cameras")
         self.btn_refresh.clicked.connect(self.refresh_cameras)
         ctrl.addWidget(self.btn_refresh)
-        self.btn_settings = QPushButton("Settings")
+
+        self.btn_settings = QPushButton()
+        self.btn_settings.setIcon(icon("settings", theme.ICON_MEDIUM))
+        self.btn_settings.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_settings.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_settings.setToolTip("Settings")
         self.btn_settings.clicked.connect(self.open_settings)
         ctrl.addWidget(self.btn_settings)
-        main_layout.addLayout(ctrl)
 
+        self.btn_instructions = QPushButton()
+        self.btn_instructions.setIcon(icon("instructions", theme.ICON_MEDIUM))
+        self.btn_instructions.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_instructions.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_instructions.setToolTip("Instructions")
+        self.btn_instructions.clicked.connect(self.open_instructions)
+        ctrl.addWidget(self.btn_instructions)
+
+        main_layout.addLayout(ctrl)
         self.setLayout(main_layout)
 
-        # camera widgets list
         self.camera_widgets = []
         self.detect_and_build()
 
+        self.record_indicator = QLabel()
+        self.record_indicator.setFixedSize(14, 14)
+        self.record_indicator.setStyleSheet("background-color: red; border-radius: 7px;")
+        self.record_indicator.setVisible(False)
+        header.addWidget(self.record_indicator)
+        self.blink_timer = QTimer()
+        self.blink_timer.timeout.connect(self.blink_record_indicator)
+        self.blink_state = False
+
     def detect_and_build(self):
-        # clear existing
         for w in self.camera_widgets:
             try:
                 w.close()
@@ -234,32 +278,38 @@ class MainWindow(QWidget):
             except Exception:
                 pass
         self.camera_widgets.clear()
-        # find cameras
+        while self.grid.count():
+            item = self.grid.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
         cam_indices = find_available_cameras(8)
         if not cam_indices:
             self.status_label.setText("No cameras found")
             return
         self.status_label.setText(f"Found {len(cam_indices)} cameras")
-        # create camera widgets and add to grid
+
         for idx, cidx in enumerate(cam_indices):
             label_text = self.get_label(idx, cidx)
             cw = CameraWidget(cidx, label_text, self.settings, parent=self)
-            opened = cw.open()
-            if opened:
-                self.camera_widgets.append(cw)
-                # grid position
-                cols = 2
-                row = idx // cols
-                col = idx % cols
-                self.grid.addWidget(cw, row, col)
+
+            if self.disable_internal_cam and cidx == 0:
+                cw.debug.setText("Disabled (internal webcam)")
             else:
-                cw.close()
+                opened = cw.open()
+                if not opened:
+                    cw.debug.setText("Failed to open")
+
+            self.camera_widgets.append(cw)
+            cols = 2
+            row = idx // cols
+            col = idx % cols
+            self.grid.addWidget(cw, row, col)
 
     def get_label(self, slot_idx, cam_index):
-        # if saved labels exist, use them by slot index
         if slot_idx < len(self.camera_labels) and self.camera_labels[slot_idx]:
             return self.camera_labels[slot_idx]
-        # fallback to default label using camera index
         return f"Cam {cam_index}"
 
     def refresh_cameras(self):
@@ -267,52 +317,60 @@ class MainWindow(QWidget):
 
     def on_record_toggle(self, checked):
         if checked:
-            # start recording
-            self.btn_record.setText("Stop Recording")
             self.status_label.setText("Recording...")
+            self.record_indicator.setVisible(True)
+            self.blink_timer.start(500)
             for cw in self.camera_widgets:
                 cw.start_recording(self.save_path, self.chunk_minutes, self.max_minutes)
         else:
-            self.btn_record.setText("Start Recording")
             self.status_label.setText("Ready")
+            self.record_indicator.setVisible(False)
+            self.blink_timer.stop()
             for cw in self.camera_widgets:
                 cw.stop_recording()
+
+    def blink_record_indicator(self):
+        self.blink_state = not self.blink_state
+        self.record_indicator.setVisible(self.blink_state)
 
     def open_settings(self):
         dlg = SettingsDialog(self)
         if dlg.exec_():
-            # apply settings
             data = dlg.get_values()
             self.camera_labels = data.get("camera_labels", self.camera_labels)
             self.save_path = data.get("save_path", self.save_path)
             self.chunk_minutes = data.get("record_chunk_minutes", self.chunk_minutes)
             self.max_minutes = data.get("max_record_minutes", self.max_minutes)
-            # persist
+            self.disable_internal_cam = data.get("disable_internal_cam", self.disable_internal_cam)
+
             self.settings["camera_labels"] = self.camera_labels
             self.settings["save_path"] = self.save_path
             self.settings["record_chunk_minutes"] = self.chunk_minutes
             self.settings["max_record_minutes"] = self.max_minutes
+            self.settings["disable_internal_cam"] = self.disable_internal_cam
             save_settings(self.settings)
-            # refresh labels displayed
-            for i, cw in enumerate(self.camera_widgets):
-                if i < len(self.camera_labels):
-                    cw.label_text = self.camera_labels[i]
-                    cw.label.setText(self.camera_labels[i])
+
+            self.refresh_cameras()
+
+    def open_instructions(self):
+        url = "https://github.com/solosightapp/solosight/blob/main/instructions"
+        webbrowser.open(url)
+
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
         self.setMinimumWidth(420)
+        # White background + black text for dialogs
+        self.setStyleSheet(f"background-color: {theme.BACKGROUND}; color: {theme.FOREGROUND};")
         layout = QVBoxLayout()
         form = QFormLayout()
 
-        # camera labels (comma-separated)
         cam_labels = ",".join(parent.camera_labels) if parent.camera_labels else ""
         self.edit_labels = QLineEdit(cam_labels)
         form.addRow("Camera labels (comma-separated)", self.edit_labels)
 
-        # save path
         self.edit_path = QLineEdit(parent.save_path)
         btn_browse = QPushButton("Browse")
         btn_browse.clicked.connect(self.browse_folder)
@@ -321,13 +379,15 @@ class SettingsDialog(QDialog):
         h.addWidget(btn_browse)
         form.addRow("Recording folder", h)
 
-        # chunk minutes
         self.edit_chunk = QLineEdit(str(parent.chunk_minutes))
         form.addRow("Chunk minutes (5-10)", self.edit_chunk)
 
-        # max minutes
         self.edit_max = QLineEdit(str(parent.max_minutes))
         form.addRow("Max session minutes (<=60)", self.edit_max)
+
+        self.chk_disable_internal = QCheckBox("Disable internal webcam on startup")
+        self.chk_disable_internal.setChecked(parent.disable_internal_cam)
+        form.addRow(self.chk_disable_internal)
 
         layout.addLayout(form)
 
@@ -340,6 +400,13 @@ class SettingsDialog(QDialog):
         btns.addWidget(self.btn_ok)
         btns.addWidget(self.btn_cancel)
         layout.addLayout(btns)
+
+        # --- Add version label at the very bottom ---
+        self.lbl_version = QLabel(f"Version: {version.VERSION}")
+        self.lbl_version.setStyleSheet("color: white; font-size: 12pt;")
+        self.lbl_version.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.lbl_version)
+
         self.setLayout(layout)
 
     def browse_folder(self):
@@ -357,9 +424,43 @@ class SettingsDialog(QDialog):
             mx = min(60, int(self.edit_max.text()))
         except:
             mx = 60
+        disable_internal = self.chk_disable_internal.isChecked()
         return {
             "camera_labels": labels,
             "save_path": self.edit_path.text().strip() or "recordings",
             "record_chunk_minutes": chunk,
-            "max_record_minutes": mx
+            "max_record_minutes": mx,
+            "disable_internal_cam": disable_internal,
         }
+
+
+def main():
+    app = QApplication(sys.argv)
+
+    # Optional: set global tooltip font
+    tooltip_font = QFont("Segoe UI", 10)
+    app.setFont(tooltip_font)
+    app.setStyleSheet(f"""
+QToolTip {{
+    color: {theme.FOREGROUND};        /* text color */
+    background-color: {theme.PANEL};  /* dark background */
+    border: 1px solid {theme.ACCENT};
+    padding: 4px;
+    border-radius: 4px;
+    font-family: {theme.LABEL_FONT};
+    font-size: {theme.BASE_FONT_SIZE + 1}px;
+}}
+""")
+
+    win = MainWindow()
+    win.show()
+    sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        input("Press Enter to exit")
+        sys.exit(1)
