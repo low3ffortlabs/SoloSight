@@ -433,6 +433,38 @@ class SettingsDialog(QDialog):
             "disable_internal_cam": disable_internal,
         }
 
+class WelcomeDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Welcome to SoloSight!")
+        self.setStyleSheet(f"background:{theme.BACKGROUND}; color:{theme.FOREGROUND};")
+        self.setMinimumWidth(400)
+
+        layout = QVBoxLayout()
+
+        msg = QLabel(
+            "Welcome to SoloSight! Before you begin, it is recommended that you read the instructions "
+            "and that you select the recording destination in 'Settings'."
+        )
+        msg.setWordWrap(True)
+        layout.addWidget(msg)
+
+        self.chk_dont_show = QCheckBox("Do not show this message again")
+        self.chk_dont_show.setChecked(False)
+
+        self.btn_instructions = QPushButton("Instructions")
+        self.btn_instructions.setIcon(icon("instructions", theme.ICON_MEDIUM))
+        self.btn_instructions.setIconSize(QSize(theme.ICON_MEDIUM, theme.ICON_MEDIUM))
+        self.btn_instructions.setStyleSheet(theme.ICON_BUTTON_STYLE)
+        self.btn_instructions.clicked.connect(lambda: parent.open_instructions())
+
+        bottom = QHBoxLayout()
+        bottom.addWidget(self.chk_dont_show)
+        bottom.addStretch()
+        bottom.addWidget(self.btn_instructions)
+        layout.addLayout(bottom)
+
+        self.setLayout(layout)
 
 def main():
     app = QApplication(sys.argv)
@@ -453,9 +485,25 @@ QToolTip {{
 """)
 
     win = MainWindow()
+    settings = win.settings
+
+    # --- Welcome dialog logic ---
+    if settings.get("show_welcome_dialog", True):
+        dlg = WelcomeDialog(win)
+
+        # Add an OK button to the bottom layout dynamically
+        btn_ok = QPushButton("OK")
+        btn_ok.clicked.connect(dlg.accept)
+        bottom_layout = dlg.layout().itemAt(dlg.layout().count() - 1)
+        if isinstance(bottom_layout, QHBoxLayout):
+            bottom_layout.addWidget(btn_ok)
+
+        if dlg.exec_() == QDialog.Accepted or dlg.chk_dont_show.isChecked():
+            settings["show_welcome_dialog"] = not dlg.chk_dont_show.isChecked()
+            save_settings(settings)
+
     win.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     try:

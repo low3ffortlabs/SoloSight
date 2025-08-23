@@ -7,8 +7,10 @@ DEFAULT_SETTINGS = {
     "save_path": "recordings",
     "record_chunk_minutes": 5,
     "max_record_minutes": 60,
-    "window_geometry": None
+    "window_geometry": None,
+    "show_welcome_dialog": True
 }
+
 
 SETTINGS_FILE = "settings.json"
 
