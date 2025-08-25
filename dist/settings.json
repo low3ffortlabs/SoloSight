@@ -1,0 +1,15 @@
+{
+  "camera_labels": [
+    "Cam 0",
+    "Cam 1"
+  ],
+  "enabled_cameras": {
+    "0": true,
+    "1": false
+  },
+  "save_path": "recordings",
+  "record_chunk_minutes": 5,
+  "max_record_minutes": 60,
+  "window_geometry": null,
+  "show_welcome_dialog": true
+}

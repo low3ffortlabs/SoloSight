@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['ui_main.py'],
+    ['C:\\Users\\jaxfa\\Documents\\SoloSight\\ui_main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('C:\\Users\\jaxfa\\Documents\\SoloSight\\icons', 'icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:\\Users\\jaxfa\\OneDrive\\Documents\\SoloSight\\assets\\logo.ico'],
+    icon=['C:\\Users\\jaxfa\\Documents\\SoloSight\\assets\\solosight.ico'],
 )

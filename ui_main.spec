@@ -5,7 +5,7 @@ a = Analysis(
     ['ui_main.py'],
     pathex=[],
     binaries=[],
-    datas=[('icons', 'icons'), ('version.txt', '.')],
+    datas=[('icons', 'icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['solosight.ico'],
+    icon=['icons\\solosight_icon.ico'],
 )
