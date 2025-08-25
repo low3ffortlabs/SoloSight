@@ -1,10 +1,3 @@
-NOTE:
-If your device has an internal webcam, it will be enabled by default.
-To make the internal webcam disabled automatically on startup, select
-the 'Settings' button and check the box for 'Disable internal webcam
-on startup'. This will immediately disable the internal webcam as
-as well as disable it on startup.
-
 TO ADD A NEW CAMERA(S):
 - Plug in camera via USB.
 - Select 'Refresh Cameras'.
@@ -13,10 +6,6 @@ TO ADD A NEW CAMERA(S):
 TO LABEL CAMERAS
 - In the top, right corner of each camera window there is an 'Edit' button.
 - This changes the label for that specific camera. 
-- Additionally, you can change the labels for all cameras at once:
-- In 'Settings', label your cameras and separate each label with commas.
-- The first label you type is for camera '0' or the first camera enabled.
-- The second label you type after the comma is for camera '1' and so on.
 
 TO RESIZE / REORDER CAMERA FEEDS:
 - In the top right corner of each camera feed there is a square box icon.
