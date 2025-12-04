@@ -4,7 +4,7 @@ I created this app (with ChatGPT's help) because I wanted to be able to use gene
 This app is super barebones but does include all the basic functionality for viewing and recording up to 4 webcams on any windows device.
 All source code is available.
 
-**SEE WEBSITE FOR:** [https://solosight.wixsite.com/solosightapp](https://loweffortlabs.wixsite.com/low3ffortlabs)
+**SEE WEBSITE FOR:** [https://loweffortlabs.wixsite.com/low3ffortlabs]
 
 Instructions.
 
